@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian Bay — Open World</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #241640; }
+  #game { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: crosshair; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<!-- three.js (vendored, no network) -->
+<script src="vendor/three.min.js"></script>
+<!-- Meridian Bay core world (Agent 1) -->
+<script src="src/config.js"></script>
+<script src="src/world.js"></script>
+<script src="src/render.js"></script>
+<script src="src/input.js"></script>
+<!-- Gameplay systems (Agent 2) and missions/UI/audio (Agent 3) load here
+     at integration time; main.js runs fine without them. -->
+<script src="src/main.js"></script>
+</body>
+</html>
