@@ -9,7 +9,7 @@ function createRenderer(canvas) {
 
   const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.15;
+  renderer.toneMappingExposure = 1.4;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -17,12 +17,12 @@ function createRenderer(canvas) {
   scene.fog = new THREE.Fog(new THREE.Color(C.colors.fog), 160, 720);
 
   // Pencahayaan senja: hemisphere + matahari rendah dari barat.
-  const hemi = new THREE.HemisphereLight(0x8a6bbf, 0x2a2233, 0.85);
+  const hemi = new THREE.HemisphereLight(0x8a6bbf, 0x2a2233, 1.25);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffb36b, 1.6);
+  const sun = new THREE.DirectionalLight(0xffb36b, 2.2);
   sun.position.set(-120, 55, -40);
   scene.add(sun);
-  const amb = new THREE.AmbientLight(0x40304f, 0.55);
+  const amb = new THREE.AmbientLight(0x40304f, 0.75);
   scene.add(amb);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 2200);
