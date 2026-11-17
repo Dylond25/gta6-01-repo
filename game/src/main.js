@@ -224,9 +224,10 @@
     const p = state.player;
     const speed = running ? C.runSpeed : C.walkSpeed;
     const yaw = state.camera.yaw;
-    // Sumbu input relatif terhadap arah kamera.
-    const fx = -Math.sin(yaw);
-    const fz = -Math.cos(yaw);
+    // Sumbu input relatif terhadap arah kamera: maju = arah pandang
+    // kamera (sin yaw, cos yaw), kanan = (-cos yaw, sin yaw).
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
     const rx = -Math.cos(yaw);
     const rz = Math.sin(yaw);
     const mx = (fx * -az + rx * ax) * speed;
