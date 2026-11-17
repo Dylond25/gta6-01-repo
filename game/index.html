@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian Bay — GTA 6 (make.fun gta6-01)</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #14101f; }
+  #game { display: block; width: 100vw; height: 100vh; }
+  #hud { display: none; position: fixed; top: 12px; left: 12px; z-index: 5;
+    color: #fff; font: 14px/1.5 system-ui, sans-serif; text-shadow: 0 1px 3px #000; }
+  #hud-stars { color: #ffd94d; font-size: 20px; letter-spacing: 2px; }
+  #minimap { position: fixed; right: 12px; bottom: 12px; z-index: 5;
+    width: 168px; height: 168px; border: 2px solid rgba(255,255,255,.55);
+    border-radius: 50%; background: rgba(10,12,26,.6); }
+  #overlay { position: fixed; inset: 0; z-index: 10; display: flex;
+    flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(12, 8, 26, 0.72); color: #fff; text-align: center;
+    font-family: system-ui, sans-serif; padding: 24px; }
+  #overlay-title { font-size: 52px; letter-spacing: 6px; margin: 0 0 12px; color: #ffb36b; }
+  #overlay-text { max-width: 560px; font-size: 16px; line-height: 1.6; margin: 0 0 20px; }
+  #overlay-btn { font-size: 18px; padding: 12px 34px; cursor: pointer;
+    background: #ff7e3d; color: #fff; border: 0; border-radius: 8px; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div id="hud-money">$250</div>
+  <div id="hud-health">HP 100</div>
+  <div id="hud-stars">☆☆☆☆☆</div>
+  <div id="hud-objective">Jelajahi Meridian Bay.</div>
+</div>
+<canvas id="minimap" width="168" height="168"></canvas>
+<div id="overlay">
+  <h1 id="overlay-title">MERIDIAN BAY</h1>
+  <p id="overlay-text">Memuat…</p>
+  <button id="overlay-btn">MULAI</button>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="src/config.js"></script>
+<script src="src/world.js"></script>
+<script src="src/render.js"></script>
+<script src="src/input.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
