@@ -36,13 +36,13 @@ const MB_CONFIG = {
 
   // Palet senja pelabuhan.
   colors: {
-    skyTop: '#241640',
-    skyMid: '#6e3560',
-    skyHorizon: '#ff7e3d',
+    skyTop: '#3a2560',
+    skyMid: '#8a4a72',
+    skyHorizon: '#ff8a45',
     sun: '#ffb36b',
     fog: '#46305e',
     ground: '#3a3a44',
-    road: '#23232b',
+    road: '#2f2f3a',
     sidewalk: '#55555f',
     lineCenter: '#e8b93b',
     lineEdge: '#d8d8d8',
