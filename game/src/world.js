@@ -126,7 +126,6 @@ function createWorld() {
   }
 
   // ---- Gedung menara (satu atau dua per blok, tinggi bervariasi) ----
-  const facadeCols = [0x3a3f4d, 0x4d3a44, 0x37424e, 0x453a2f];
   for (let bx = 0; bx < C.blocks; bx++) {
     for (let bz = 0; bz < C.blocks; bz++) {
       const cx = -half + C.roadWidth + C.blockSize / 2 + bx * pitch;
@@ -141,10 +140,13 @@ function createWorld() {
         const h = hBase * (0.55 + rand() * 0.7);
         const ox = n === 1 ? 0 : (k === 0 ? -8 : 8);
         const oz = n === 1 ? 0 : (k === 0 ? 7 : -7);
+        const tex = winTex[(bx * 7 + bz * 3 + k) % 4];
         const mat = new THREE.MeshLambertMaterial({
-          map: winTex[(bx * 7 + bz * 3 + k) % 4],
-          color: facadeCols[(bx + bz + k) % 4],
-          emissive: 0x332211,
+          map: tex,
+          color: 0xaab0c0,
+          emissive: 0xffc46b,
+          emissiveMap: tex,
+          emissiveIntensity: 0.55,
         });
         const tower = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
         tower.position.set(cx + ox, C.blockTop + h / 2, cz + oz);
