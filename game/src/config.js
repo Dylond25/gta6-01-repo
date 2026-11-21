@@ -34,15 +34,15 @@ const MB_CONFIG = {
   // Waktu dalam game (senja, tetap — pencahayaan dusk).
   timeOfDay: 'dusk',
 
-  // Palet senja pelabuhan.
+  // Palet golden-hour tropis (integrasi): langit pink-oranye.
   colors: {
-    skyTop: '#3a2560',
-    skyMid: '#8a4a72',
+    skyTop: '#572a6e',
+    skyMid: '#b0527d',
     skyHorizon: '#ff8a45',
     sun: '#ffb36b',
-    fog: '#46305e',
+    fog: '#5a3a5e',
     ground: '#3a3a44',
-    road: '#2f2f3a',
+    road: '#40404e',
     sidewalk: '#55555f',
     lineCenter: '#e8b93b',
     lineEdge: '#d8d8d8',
