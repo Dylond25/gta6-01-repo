@@ -318,7 +318,10 @@ function createWorld() {
     group.add(cl);
   }
 
-  const spawn = { x: 0, z: C.roadWidth / 2 + pitch * 0.5, yaw: Math.PI };
+  // Spawn di boardwalk pantai (polish): kamera menu membingkai palem,
+  // ferris wheel di utara, laut + senja di barat. yaw diputar ke barat
+  // (diukur lewat probe menu: +0.30 menaruh ferris wheel di tengah atas).
+  const spawn = { x: -half + 2, z: -40, yaw: Math.PI + 0.30 };
   return {
     group: group,
     spawn: spawn,
