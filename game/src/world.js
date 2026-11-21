@@ -220,6 +220,80 @@ function createWorld() {
     group.add(cabin);
   }
 
+  // ---- Boardwalk kayu + 22 palem di boulevard pantai (integrasi) ----
+  // Boulevard pantai membujur di tepi barat kota, di antara jalan
+  // terluar dan laut. Palem berjejer di sepanjang boardwalk.
+  const boardMat = new THREE.MeshLambertMaterial({ color: 0x8a6a45 });
+  const boardwalk = new THREE.Mesh(
+    new THREE.BoxGeometry(10, 0.35, half * 2), boardMat);
+  boardwalk.position.set(-half + 2, 0.2, 0);
+  group.add(boardwalk);
+  // Papan-papan melintang supaya tekstur boardwalk terbaca.
+  const plankMat = new THREE.MeshLambertMaterial({ color: 0x6e5236 });
+  for (let pz = -half + 8; pz < half - 8; pz += 12) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(10.4, 0.08, 1.6), plankMat);
+    plank.position.set(-half + 2, 0.42, pz);
+    group.add(plank);
+  }
+  // 22 palem: batang miring + 6 pelepah, posisi deterministik.
+  const trunkMat = new THREE.MeshLambertMaterial({ color: 0x7a5a38 });
+  const frondMat = new THREE.MeshLambertMaterial({ color: 0x2e7a3a });
+  for (let pi = 0; pi < 22; pi++) {
+    const px = -half + 2 + (pi % 2 === 0 ? -3.4 : 3.4);
+    const pz = -half + 14 + pi * ((half * 2 - 28) / 21);
+    const lean = (rand() - 0.5) * 0.22;
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.34, 7.5, 6), trunkMat);
+    trunk.position.set(px, 3.75, pz);
+    trunk.rotation.z = lean;
+    group.add(trunk);
+    const topX = px + Math.sin(lean) * 0 - lean * 7.5;
+    for (let f = 0; f < 6; f++) {
+      const frond = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 3.4), frondMat);
+      const ang = (f / 6) * Math.PI * 2;
+      frond.position.set(topX + Math.cos(ang) * 1.4, 7.6, pz + Math.sin(ang) * 1.4);
+      frond.rotation.y = -ang;
+      frond.rotation.x = 0.5;
+      group.add(frond);
+    }
+  }
+
+  // ---- Ferris wheel di ujung utara boardwalk (integrasi) ----
+  const wheelX = -half - 6;
+  const wheelZ = -half + 30;
+  const wheel = new THREE.Group();
+  const rimMat = new THREE.MeshLambertMaterial({ color: 0xe8e8e8 });
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(17, 0.7, 8, 28), rimMat);
+  wheel.add(rim);
+  const spokeMat = new THREE.MeshLambertMaterial({ color: 0xc23b2e });
+  for (let s = 0; s < 8; s++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.5, 33, 0.5), spokeMat);
+    spoke.rotation.z = (s / 8) * Math.PI;
+    wheel.add(spoke);
+  }
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 1.4, 10), spokeMat);
+  hub.rotation.x = Math.PI / 2;
+  wheel.add(hub);
+  const cabinCols = [0xffd94d, 0x2e6fc2, 0x2e8a5a, 0xc23b2e, 0x7a4a9e, 0xb0702e, 0x4a6a7a, 0xd8d8d8];
+  const cabins = [];
+  for (let cb = 0; cb < 8; cb++) {
+    const ang = (cb / 8) * Math.PI * 2;
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.2, 2.2),
+      new THREE.MeshLambertMaterial({ color: cabinCols[cb] }));
+    cabin.position.set(Math.cos(ang) * 17, Math.sin(ang) * 17, 0);
+    wheel.add(cabin);
+    cabins.push(cabin);
+  }
+  // Dua kaki penyangga.
+  const legMat = new THREE.MeshLambertMaterial({ color: 0x3a3f4a });
+  for (const ls of [-1, 1]) {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.9, 21, 6), legMat);
+    leg.position.set(ls * 4.5, 10, 0);
+    leg.rotation.z = -ls * 0.22;
+    wheel.add(leg);
+  }
+  wheel.position.set(wheelX, 19, wheelZ);
+  group.add(wheel);
+
   // ---- Kubah langit + matahari rendah + awan ----
   const sky = new THREE.Mesh(
     new THREE.SphereGeometry(950, 24, 16),
@@ -252,5 +326,7 @@ function createWorld() {
     colliders: colliders,
     bounds: half + 130,
     seaX: -half,
+    ferrisWheel: wheel,
+    ferrisCabins: cabins,
   };
 }
