@@ -420,10 +420,100 @@
     }
   }
 
+  // ---- Daur ulang aktor jauh (polish 22 Nov) ----
+  // Kota 8x8 terlalu luas untuk 8 mobil + 14 pejalan kaki: tanpa daur
+  // ulang, jalan di sekitar pemain hampir selalu kosong di screenshot.
+  // Aktor yang sudah >130 m dari pemain dipindah ke jalan/trotoar dekat
+  // pemain (45-75 m untuk mobil, 20-50 m untuk pejalan kaki) — jumlah
+  // aktor tetap sama, jalan di sekitar pemain selalu hidup. Sekali per
+  // detik, maks 1 mobil + 2 pejalan kaki, supaya tidak ada yang
+  // muncul mendadak di depan kamera.
+  var RECYCLE_DIST = 130;
+  var RECYCLE_CAR_MIN = 45;
+  var RECYCLE_CAR_MAX = 75;
+  var recycleCd = 0;
+
+  function recycleCarNearPlayer(state, car) {
+    var px = state.player.x, pz = state.player.z;
+    var axis = Math.random() < 0.5 ? 'x' : 'z';
+    var centers = roadCenters(axis);
+    if (centers.length === 0) return;
+    var along0 = axis === 'x' ? pz : px;
+    var best = centers[0], bd = 1e9;
+    for (var i = 0; i < centers.length; i++) {
+      var d = Math.abs(centers[i] - along0);
+      if (d < bd) { bd = d; best = centers[i]; }
+    }
+    if (Math.random() < 0.4) {
+      var idx = centers.indexOf(best) + (Math.random() < 0.5 ? 1 : -1);
+      if (idx >= 0 && idx < centers.length) best = centers[idx];
+    }
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var lane = laneFor(axis, dir);
+    var along = (axis === 'x' ? px : pz) + dir * rand(RECYCLE_CAR_MIN, RECYCLE_CAR_MAX);
+    along = clamp(along, -CITY_EDGE + 10, CITY_EDGE - 10);
+    car.roadAxis = axis; car.roadAt = best; car.dir = dir; car.lane = lane;
+    car.x = axis === 'x' ? along : best + lane;
+    car.z = axis === 'x' ? best + lane : along;
+    car.heading = headingFor(axis, dir);
+    car.speed = car.targetSpeed;
+    if (car.mesh) { car.mesh.position.set(car.x, 0, car.z); car.mesh.rotation.y = car.heading; }
+  }
+
+  function recyclePedNearPlayer(state, ped) {
+    if (ped.gang) return;
+    var px = state.player.x, pz = state.player.z;
+    var axis = Math.random() < 0.5 ? 'x' : 'z';
+    var centers = roadCenters(axis);
+    if (centers.length === 0) return;
+    var along0 = axis === 'x' ? pz : px;
+    var best = centers[0], bd = 1e9;
+    for (var i = 0; i < centers.length; i++) {
+      var d = Math.abs(centers[i] - along0);
+      if (d < bd) { bd = d; best = centers[i]; }
+    }
+    var side = Math.random() < 0.5 ? 1 : -1;
+    var line = best + side * SIDEWALK;
+    var along = (axis === 'x' ? px : pz) + (Math.random() < 0.5 ? 1 : -1) * rand(20, 50);
+    along = clamp(along, -CITY_EDGE + 10, CITY_EDGE - 10);
+    ped.axis = axis; ped.line = line; ped.dir = Math.random() < 0.5 ? 1 : -1;
+    ped.x = axis === 'x' ? along : line;
+    ped.z = axis === 'x' ? line : along;
+    ped.fleeing = false; ped.fleeT = 0; ped.waitT = 0;
+    pickPedTarget(ped, true);
+    if (ped.mesh) { ped.mesh.position.set(ped.x, 0, ped.z); ped.mesh.rotation.y = ped.heading; }
+  }
+
+  function recycleFarActors(state, dt) {
+    recycleCd -= dt;
+    if (recycleCd > 0) return;
+    recycleCd = 1;
+    var px = state.player.x, pz = state.player.z;
+    var recycledCar = false, recycledPeds = 0;
+    for (var i = 0; i < trafficCars.length && !recycledCar; i++) {
+      var c = trafficCars[i];
+      if (c.driven || c.parked) continue;
+      if (dist2(c.x, c.z, px, pz) > RECYCLE_DIST) {
+        recycleCarNearPlayer(state, c);
+        recycledCar = true;
+      }
+    }
+    for (var j = 0; j < peds.length && recycledPeds < 2; j++) {
+      var p = peds[j];
+      if (p.gang || p.health <= 0) continue;
+      if (dist2(p.x, p.z, px, pz) > RECYCLE_DIST) {
+        recyclePedNearPlayer(state, p);
+        recycledPeds++;
+      }
+    }
+  }
+
   function updateTraffic(state, dt) {
     if (!state) return;
     if (!state.vehicles) state.vehicles = [];
     if (!state.peds) state.peds = [];
+    // Daur ulang aktor jauh supaya jalan di sekitar pemain selalu ramai.
+    recycleFarActors(state, dt);
     // Sinkronisasi mobil lalu lintas ke state.vehicles (anti-duplikat).
     for (var i = 0; i < trafficCars.length; i++) {
       var found = false;
