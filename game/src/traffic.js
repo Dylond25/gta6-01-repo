@@ -43,6 +43,8 @@
   var worldRef = null;
   var trafficCars = [];
   var peds = [];
+  var recycleAcc = 0;          // akumulator detik untuk daur ulang aktor
+  var RECYCLE_FAR = 130;       // aktor sejauh ini dari pemain didaur ulang
 
   // ---- Util ----
   function clamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
@@ -420,90 +422,82 @@
     }
   }
 
-  // ---- Daur ulang aktor jauh (polish 22 Nov) ----
-  // Kota 8x8 terlalu luas untuk 8 mobil + 14 pejalan kaki: tanpa daur
-  // ulang, jalan di sekitar pemain hampir selalu kosong di screenshot.
-  // Aktor yang sudah >130 m dari pemain dipindah ke jalan/trotoar dekat
-  // pemain (45-75 m untuk mobil, 20-50 m untuk pejalan kaki) — jumlah
-  // aktor tetap sama, jalan di sekitar pemain selalu hidup. Sekali per
-  // detik, maks 1 mobil + 2 pejalan kaki, supaya tidak ada yang
-  // muncul mendadak di depan kamera.
-  var RECYCLE_DIST = 130;
-  var RECYCLE_CAR_MIN = 45;
-  var RECYCLE_CAR_MAX = 75;
-  var recycleCd = 0;
-
-  function recycleCarNearPlayer(state, car) {
-    var px = state.player.x, pz = state.player.z;
-    var axis = Math.random() < 0.5 ? 'x' : 'z';
+  // ---- Daur ulang aktor jauh (polish): sekali per detik, pindahkan
+  // maks 1 mobil + 2 pejalan kaki yang >130 m dari pemain ke jalan /
+  // trotoar dekat pemain. Jumlah aktor tetap — hanya posisi berubah,
+  // jadi kota selalu terasa ramai di sekitar pemain.
+  function nearestRoadLine(axis, cross) {
     var centers = roadCenters(axis);
-    if (centers.length === 0) return;
-    var along0 = axis === 'x' ? pz : px;
-    var best = centers[0], bd = 1e9;
-    for (var i = 0; i < centers.length; i++) {
-      var d = Math.abs(centers[i] - along0);
-      if (d < bd) { bd = d; best = centers[i]; }
+    if (!centers.length) return null;
+    var best = centers[0];
+    var bd = Math.abs(centers[0] - cross);
+    for (var i = 1; i < centers.length; i++) {
+      var dd = Math.abs(centers[i] - cross);
+      if (dd < bd) { bd = dd; best = centers[i]; }
     }
-    if (Math.random() < 0.4) {
-      var idx = centers.indexOf(best) + (Math.random() < 0.5 ? 1 : -1);
-      if (idx >= 0 && idx < centers.length) best = centers[idx];
-    }
-    var dir = Math.random() < 0.5 ? 1 : -1;
-    var lane = laneFor(axis, dir);
-    var along = (axis === 'x' ? px : pz) + dir * rand(RECYCLE_CAR_MIN, RECYCLE_CAR_MAX);
-    along = clamp(along, -CITY_EDGE + 10, CITY_EDGE - 10);
-    car.roadAxis = axis; car.roadAt = best; car.dir = dir; car.lane = lane;
-    car.x = axis === 'x' ? along : best + lane;
-    car.z = axis === 'x' ? best + lane : along;
-    car.heading = headingFor(axis, dir);
-    car.speed = car.targetSpeed;
-    if (car.mesh) { car.mesh.position.set(car.x, 0, car.z); car.mesh.rotation.y = car.heading; }
+    return best;
   }
 
-  function recyclePedNearPlayer(state, ped) {
-    if (ped.gang) return;
-    var px = state.player.x, pz = state.player.z;
+  function relocateCarNear(car, px, pz) {
     var axis = Math.random() < 0.5 ? 'x' : 'z';
-    var centers = roadCenters(axis);
-    if (centers.length === 0) return;
-    var along0 = axis === 'x' ? pz : px;
-    var best = centers[0], bd = 1e9;
-    for (var i = 0; i < centers.length; i++) {
-      var d = Math.abs(centers[i] - along0);
-      if (d < bd) { bd = d; best = centers[i]; }
-    }
+    var at = nearestRoadLine(axis, axis === 'x' ? pz : px);
+    if (at === null) return false;
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var alongC = axis === 'x' ? px : pz;
+    var along = clamp(alongC + rand(45, 75) * (Math.random() < 0.5 ? 1 : -1),
+      -CITY_EDGE + 10, CITY_EDGE - 10);
+    car.roadAxis = axis;
+    car.roadAt = at;
+    car.dir = dir;
+    car.lane = laneFor(axis, dir);
+    car.heading = headingFor(axis, dir);
+    car.x = axis === 'x' ? along : at + car.lane;
+    car.z = axis === 'x' ? at + car.lane : along;
+    return true;
+  }
+
+  function relocatePedNear(ped, px, pz) {
+    if (ped.fleeing || ped.health <= 0) return false;
+    var axis = Math.random() < 0.5 ? 'x' : 'z';
+    var at = nearestRoadLine(axis, axis === 'x' ? pz : px);
+    if (at === null) return false;
     var side = Math.random() < 0.5 ? 1 : -1;
-    var line = best + side * SIDEWALK;
-    var along = (axis === 'x' ? px : pz) + (Math.random() < 0.5 ? 1 : -1) * rand(20, 50);
-    along = clamp(along, -CITY_EDGE + 10, CITY_EDGE - 10);
-    ped.axis = axis; ped.line = line; ped.dir = Math.random() < 0.5 ? 1 : -1;
+    var line = at + side * SIDEWALK;
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var alongC = axis === 'x' ? px : pz;
+    var along = clamp(alongC + rand(20, 50) * (Math.random() < 0.5 ? 1 : -1),
+      -CITY_EDGE + 10, CITY_EDGE - 10);
+    ped.axis = axis;
+    ped.line = line;
+    ped.dir = dir;
     ped.x = axis === 'x' ? along : line;
     ped.z = axis === 'x' ? line : along;
-    ped.fleeing = false; ped.fleeT = 0; ped.waitT = 0;
-    pickPedTarget(ped, true);
-    if (ped.mesh) { ped.mesh.position.set(ped.x, 0, ped.z); ped.mesh.rotation.y = ped.heading; }
+    ped.heading = headingFor(axis, dir);
+    ped.tx = ped.x;
+    ped.tz = ped.z;
+    ped.waitT = 0;
+    pickPedTarget(ped, false);
+    return true;
   }
 
-  function recycleFarActors(state, dt) {
-    recycleCd -= dt;
-    if (recycleCd > 0) return;
-    recycleCd = 1;
-    var px = state.player.x, pz = state.player.z;
-    var recycledCar = false, recycledPeds = 0;
-    for (var i = 0; i < trafficCars.length && !recycledCar; i++) {
-      var c = trafficCars[i];
-      if (c.driven || c.parked) continue;
-      if (dist2(c.x, c.z, px, pz) > RECYCLE_DIST) {
-        recycleCarNearPlayer(state, c);
-        recycledCar = true;
+  function recycleFarActors(state) {
+    var p = state.player;
+    if (!p) return;
+    var carsDone = 0;
+    for (var c = 0; c < trafficCars.length; c++) {
+      if (carsDone >= 1) break;
+      var car = trafficCars[c];
+      if (car.driven || car.parked) continue;
+      if (dist2(car.x, car.z, p.x, p.z) > RECYCLE_FAR) {
+        if (relocateCarNear(car, p.x, p.z)) carsDone++;
       }
     }
-    for (var j = 0; j < peds.length && recycledPeds < 2; j++) {
-      var p = peds[j];
-      if (p.gang || p.health <= 0) continue;
-      if (dist2(p.x, p.z, px, pz) > RECYCLE_DIST) {
-        recyclePedNearPlayer(state, p);
-        recycledPeds++;
+    var pedsDone = 0;
+    for (var k = 0; k < peds.length; k++) {
+      if (pedsDone >= 2) break;
+      var ped = peds[k];
+      if (dist2(ped.x, ped.z, p.x, p.z) > RECYCLE_FAR) {
+        if (relocatePedNear(ped, p.x, p.z)) pedsDone++;
       }
     }
   }
@@ -512,8 +506,6 @@
     if (!state) return;
     if (!state.vehicles) state.vehicles = [];
     if (!state.peds) state.peds = [];
-    // Daur ulang aktor jauh supaya jalan di sekitar pemain selalu ramai.
-    recycleFarActors(state, dt);
     // Sinkronisasi mobil lalu lintas ke state.vehicles (anti-duplikat).
     for (var i = 0; i < trafficCars.length; i++) {
       var found = false;
@@ -529,6 +521,12 @@
         if (state.peds[m].id === peds[k].id) { foundP = true; break; }
       }
       if (!foundP) state.peds.push(peds[k]);
+    }
+    // Daur ulang aktor jauh, sekali per detik (lihat recycleFarActors).
+    recycleAcc += dt;
+    if (recycleAcc >= 1) {
+      recycleAcc = 0;
+      recycleFarActors(state);
     }
     // Gerakkan mobil lalu lintas (termasuk mobil curian yang ditinggal:
     // parked=false + driven=false -> AI mengambil alih lagi).
