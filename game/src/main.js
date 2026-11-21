@@ -19,6 +19,7 @@
       vx: 0, vy: 0, vz: 0,
       onGround: true, inVehicle: false, vehicleId: null,
       health: 100, money: 250,
+      respect: 0, armour: 0, carCond: 100,
     },
     wanted: { level: 0, cooldown: 0 },
     time: { phase: C.timeOfDay, t: 0 },
@@ -200,6 +201,9 @@
     state.player.vz = 0;
     state.player.health = 100;
     state.player.money = 250;
+    state.player.respect = 0;
+    state.player.armour = 0;
+    state.player.carCond = 100;
     state.player.inVehicle = false;
     state.wanted.level = 0;
     state.wanted.cooldown = 0;
@@ -209,6 +213,11 @@
     state.police = [];
     state.over = false;
     state.won = false;
+    lastMissionId = 0;
+    grantedM5 = false;
+    wasInVehicle = false;
+    lastVehSpeed = 0;
+    hitCd = 0;
   }
   // ---- Collision: pemain (lingkaran) vs gedung (AABB), geser dinding ----
   function collide(x, z, r) {
@@ -262,6 +271,66 @@
     }
   }
 
+  // ---- Integrasi: reward misi + kondisi mobil ----
+  // Reward diberikan saat misi berganti id (misi sebelumnya selesai)
+  // atau saat misi 5 berstatus done. respect +20/misi, armour +25/misi
+  // maks 100. carCond 100 saat masuk mobil, -6 per benturan keras
+  // (kecepatan mobil jatuh mendadak karena menabrak gedung).
+  let lastMissionId = 0;
+  let grantedM5 = false;
+  let wasInVehicle = false;
+  let lastVehSpeed = 0;
+  let hitCd = 0;
+
+  function grantMissionReward() {
+    const p = state.player;
+    p.respect = (p.respect || 0) + 20;
+    p.armour = Math.min(100, (p.armour || 0) + 25);
+  }
+
+  function trackMissionRewards() {
+    const m = state.mission;
+    if (!m) return;
+    // Misi selesai = id naik (missions.js langsung memulai misi berikut).
+    if (m.id === lastMissionId + 1 && lastMissionId >= 1) {
+      grantMissionReward();
+    }
+    // Misi 5 selesai: id tetap 5, status jadi 'done'.
+    if (m.id === 5 && m.status === 'done' && lastMissionId === 5 && !grantedM5) {
+      grantMissionReward();
+      grantedM5 = true;
+    }
+    lastMissionId = m.id;
+  }
+
+  function trackCarCond(dt) {
+    const p = state.player;
+    if (hitCd > 0) hitCd -= dt;
+    if (!wasInVehicle && p.inVehicle) {
+      p.carCond = 100; // mobil segar saat masuk
+      lastVehSpeed = 0;
+    }
+    if (p.inVehicle && p.vehicleId) {
+      let v = null;
+      for (const vv of state.vehicles) {
+        if (vv.id === p.vehicleId) { v = vv; break; }
+      }
+      if (v) {
+        const sp = Math.abs(v.speed || 0);
+        // Benturan keras: kecepatan jatuh >6 m/s dalam satu langkah
+        // dari laju >10 m/s (drivePlayerCar mengalikan 0.4 saat tabrak).
+        if (lastVehSpeed > 10 && lastVehSpeed - sp > 6 && hitCd <= 0) {
+          p.carCond = Math.max(0, (p.carCond || 100) - 6);
+          hitCd = 0.5;
+        }
+        lastVehSpeed = sp;
+      }
+    } else {
+      lastVehSpeed = 0;
+    }
+    wasInVehicle = p.inVehicle;
+  }
+
   // ---- Update satu langkah (dt detik) ----
   function update(dt) {
     state.time.t += dt;
@@ -310,6 +379,10 @@
     if (hudApi && typeof updateHUD === 'function') {
       try { updateHUD(state, dt); } catch (err) { /* abaikan */ }
     }
+
+    // Integrasi: reward misi + kondisi mobil.
+    trackMissionRewards();
+    trackCarCond(dt);
 
     // Wanted cooldown: bersembunyi menurunkan bintang perlahan.
     if (state.wanted.level > 0) {
