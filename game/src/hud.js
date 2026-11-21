@@ -118,6 +118,35 @@
     } catch (err) { return false; }
   }
 
+  // ---- Integrasi: nama zona dari posisi + dialog berpotret ----
+  function zoneName(x, z) {
+    if (x < -180) return 'Dermaga Barat';
+    if (x < -120 && z > 60) return 'Boardwalk';
+    if (x < -120) return 'Pelabuhan Barat';
+    if (z < -150) return 'Turf Utara';
+    if (z > 150) return 'Parkiran Selatan';
+    if (x > 150) return 'Gudang Timur';
+    if (z < -60) return 'Kota Utara';
+    return 'Boulevard Pantai';
+  }
+
+  var DIALOGUE = {
+    1: { name: 'MARA VOSS', color: '#b0527d', line: 'Rio, paketnya harus sampai sebelum senja. Jangan bikin masalah.' },
+    2: { name: 'RIO KESTREL', color: '#1f8a8a', line: 'Mobil itu... aku butuh kunci cepat. Parkiran selatan, sekarang.' },
+    3: { name: 'DARIO', color: '#c23b2e', line: 'Polisi sudah di ekor kita — gas terus, jangan berhenti!' },
+    4: { name: 'MARA VOSS', color: '#b0527d', line: 'Geng Meridian tidak main-main. Habisi mereka, Rio.' },
+    5: { name: 'DARIO', color: '#c23b2e', line: 'Dermaga barat. Sekali jalan, jangan menoleh ke belakang.' },
+  };
+  var dialogueUntil = 0;   // performance.now() sampai dialog hilang
+  var dialogueMission = 0; // misi yang dialognya sedang tampil
+
+  function barText(label, v) {
+    var n = Math.max(0, Math.min(10, Math.round(v / 10)));
+    var s = '';
+    for (var i = 0; i < 10; i++) s += i < n ? '█' : '░';
+    return label + ' [' + s + '] ' + Math.round(v);
+  }
+
   function showToast(text) {
     toastText = text;
     toastUntil = now() + 3500;
@@ -275,8 +304,15 @@
           showToast('PELARIAN BESAR BERHASIL — RIO BEBAS!');
         } else if (state.mission.id > 0) {
           showToast('Misi ' + state.mission.id + ' dimulai — ' + state.mission.text);
+          // Dialog berpotret 15 detik saat misi berganti.
+          dialogueMission = state.mission.id;
+          dialogueUntil = now() + 15000;
         }
         saveGame(state);
+      } else if (state.mission.id > 0 && state.mission.status !== 'done') {
+        // Misi pertama saat game mulai.
+        dialogueMission = state.mission.id;
+        dialogueUntil = now() + 15000;
       }
       lastKey = key;
     }
@@ -310,6 +346,89 @@
         ? 'WASD gerak · Shift lari · Spasi lompat · E mobil · F curi · Klik serang · P jeda · M bisu (BISU)'
         : 'WASD gerak · Shift lari · Spasi lompat · E mobil · F curi · Klik serang · P jeda · M bisu · L muat save · K simpan';
     }
+
+    // ---- HUD padat (integrasi) ----
+    var playing = state.started && !state.over;
+    if (extra.zone) {
+      extra.zone.style.display = playing ? 'block' : 'none';
+      if (playing) extra.zone.textContent = '◉ ' + zoneName(state.player.x, state.player.z);
+    }
+    if (extra.bars) {
+      extra.bars.style.display = playing ? 'block' : 'none';
+      if (playing) {
+        extra.bars.textContent =
+          barText('RESPECT', state.player.respect || 0) + '\n' +
+          barText('HEALTH ', state.player.health) + '\n' +
+          barText('ARMOUR ', state.player.armour || 0);
+        extra.bars.style.whiteSpace = 'pre';
+      }
+    }
+    if (extra.policeList) {
+      extra.policeList.style.display = playing ? 'block' : 'none';
+      if (playing) {
+        var lines = ['RESPONS POLISI'];
+        var units = state.police || [];
+        if (state.wanted.level === 0 || units.length === 0) {
+          lines.push('— siaga —');
+        } else {
+          for (var u = 0; u < units.length; u++) {
+            var un = units[u];
+            var dd = Math.round(Math.hypot(un.x - state.player.x, un.z - state.player.z));
+            var st = dd < 8 ? 'RAMMING' : (dd > 50 ? 'MENYISIR' : 'PURSUIT');
+            lines.push((u + 1) + '. PCPD-' + (u + 1) + ' · ' + dd + 'm · ' + st);
+          }
+        }
+        extra.policeList.textContent = lines.join('\n');
+        extra.policeList.style.whiteSpace = 'pre';
+      }
+    }
+    if (extra.weapon) {
+      extra.weapon.style.display = playing ? 'block' : 'none';
+      if (playing) extra.weapon.textContent = 'SENJATA: ● TINJU  ○ BAT (terkunci)  ○ PISTOL (terkunci)  ○ SMG (terkunci)';
+    }
+    if (extra.radio) extra.radio.style.display = playing ? 'block' : 'none';
+    if (extra.carInfo) {
+      if (playing && state.player.inVehicle && state.player.vehicleId) {
+        var cv = null;
+        for (var ci = 0; ci < (state.vehicles || []).length; ci++) {
+          if (state.vehicles[ci].id === state.player.vehicleId) { cv = state.vehicles[ci]; break; }
+        }
+        if (cv) {
+          var kmh = Math.round(Math.abs(cv.speed || 0) * 3.6);
+          extra.carInfo.textContent = (cv.type || 'mobil').toUpperCase() + ' · ' + kmh +
+            ' km/j · KONDISI ' + Math.round(state.player.carCond || 100) + '%';
+          extra.carInfo.style.display = 'block';
+        } else {
+          extra.carInfo.style.display = 'none';
+        }
+      } else {
+        extra.carInfo.style.display = 'none';
+      }
+    }
+    // Dialog berpotret: tampil 15 detik sejak misi berganti; hint
+    // disembunyikan selama dialog tampil.
+    var dlgOn = now() < dialogueUntil && dialogueMission > 0;
+    if (extra.dialogue) {
+      extra.dialogue.style.display = (playing && dlgOn) ? 'block' : 'none';
+      if (playing && dlgOn) {
+        var dg = DIALOGUE[dialogueMission] || DIALOGUE[1];
+        extra.dialogue.innerHTML = '';
+        var face = document.createElement('span');
+        face.textContent = dg.name.charAt(0);
+        face.style.cssText = 'display:inline-block; width:38px; height:38px; line-height:38px;' +
+          'text-align:center; border-radius:50%; background:' + dg.color + '; color:#fff;' +
+          'font:700 18px system-ui,sans-serif; margin-right:10px; vertical-align:top;';
+        var who = document.createElement('b');
+        who.textContent = dg.name;
+        who.style.color = '#ffc93c';
+        var say = document.createElement('span');
+        say.textContent = ' — “' + dg.line + '”';
+        extra.dialogue.appendChild(face);
+        extra.dialogue.appendChild(who);
+        extra.dialogue.appendChild(say);
+      }
+    }
+    if (extra.hint) extra.hint.style.display = dlgOn ? 'none' : '';
 
     drawMinimap(state);
   }
@@ -364,7 +483,34 @@
         saveNote: makeDiv('mb-save',
           'display:none; position:fixed; right:12px; top:12px; z-index:5; color:#7dff9a;' +
           'font:12px system-ui,sans-serif; text-shadow:0 1px 3px #000;'),
+        // ---- HUD padat (integrasi) ----
+        zone: makeDiv('mb-zone',
+          'position:fixed; left:12px; top:118px; z-index:5; color:#ffd94d;' +
+          'font:700 13px system-ui,sans-serif; letter-spacing:1px; text-shadow:0 1px 3px #000;'),
+        bars: makeDiv('mb-bars',
+          'position:fixed; left:12px; top:140px; z-index:5; color:#fff;' +
+          'font:12px/1.7 monospace; text-shadow:0 1px 3px #000;'),
+        policeList: makeDiv('mb-police',
+          'position:fixed; right:12px; top:64px; z-index:5; color:#ffb3b3;' +
+          'font:12px/1.7 monospace; text-align:right; text-shadow:0 1px 3px #000;' +
+          'background:rgba(10,12,26,0.55); padding:6px 10px; border-radius:8px;'),
+        weapon: makeDiv('mb-weapon',
+          'position:fixed; left:12px; bottom:44px; z-index:5; color:#fff;' +
+          'font:700 13px system-ui,sans-serif; text-shadow:0 1px 3px #000;' +
+          'background:rgba(10,12,26,0.55); padding:6px 10px; border-radius:8px;'),
+        radio: makeDiv('mb-radio',
+          'position:fixed; right:192px; bottom:12px; z-index:5; color:#7dd8ff;' +
+          'font:700 13px system-ui,sans-serif; text-shadow:0 1px 3px #000;'),
+        carInfo: makeDiv('mb-car',
+          'position:fixed; right:192px; bottom:34px; z-index:5; color:#fff;' +
+          'font:700 13px system-ui,sans-serif; text-shadow:0 1px 3px #000;'),
+        dialogue: makeDiv('mb-dialogue',
+          'display:none; position:fixed; left:50%; bottom:96px; transform:translateX(-50%);' +
+          'z-index:6; width:520px; max-width:86vw; background:rgba(10,12,26,0.88);' +
+          'border:1px solid #ffc93c; border-radius:10px; padding:10px 14px;' +
+          'color:#fff; font:14px/1.5 system-ui,sans-serif;'),
       };
+      extra.radio.textContent = 'RADIO · BAY FM 88.1';
       extra.pause.textContent = 'JEDA — tekan P untuk lanjut';
       extra.saveNote.textContent = 'Tersimpan ✓';
     }
