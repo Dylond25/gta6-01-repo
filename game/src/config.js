@@ -40,7 +40,7 @@ const MB_CONFIG = {
     skyMid: '#b0527d',
     skyHorizon: '#ff8a45',
     sun: '#ffb36b',
-    fog: '#5a3a5e',
+    fog: '#6e4258',
     ground: '#3a3a44',
     road: '#40404e',
     sidewalk: '#55555f',
