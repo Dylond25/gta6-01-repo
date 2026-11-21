@@ -9,7 +9,7 @@ function createRenderer(canvas) {
 
   const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 2.1; // golden-hour (integrasi, polish: +0.2)
+  renderer.toneMappingExposure = 2.1; // golden-hour terang (polish)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 
@@ -22,7 +22,7 @@ function createRenderer(canvas) {
   const sun = new THREE.DirectionalLight(0xffb36b, 2.8);
   sun.position.set(-120, 55, -40);
   scene.add(sun);
-  const amb = new THREE.AmbientLight(0x40304f, 1.0);
+  const amb = new THREE.AmbientLight(0x40304f, 1.0); // terang (polish)
   scene.add(amb);
 
   const camera = new THREE.PerspectiveCamera(62, 1, 0.1, 2200);
@@ -134,11 +134,11 @@ function createRenderer(canvas) {
     const p = state.player;
     const cam = state.camera;
 
-    // Posisi + arah pemain. Di dalam mobil, mesh Rio disembunyikan
-    // (polish 22 Nov): sebelumnya menembus atap mobil di screenshot.
-    player.visible = !p.inVehicle;
+    // Posisi + arah pemain. Mesh disembunyikan saat di dalam mobil
+    // (polish: sebelumnya menembus atap dan terlihat di screenshot).
     player.position.set(p.x, p.y, p.z);
     player.rotation.y = p.heading;
+    player.visible = !p.inVehicle;
     // Animasi jalan: kaki mengayun saat bergerak.
     const speed = Math.hypot(p.vx || 0, p.vz || 0);
     if (speed > 0.4) {
@@ -166,16 +166,6 @@ function createRenderer(canvas) {
         }
       }
     } catch (err) { /* ferris opsional */ }
-
-    // Menu awal (polish 22 Nov): kamera sinematik di boardwalk — palem
-    // berjejer, ferris wheel di ujung utara, matahari senja di atas laut.
-    // Begitu game mulai, kamera kembali mengejar pemain (lerp di bawah).
-    if (!state.started) {
-      camera.position.set(-208, 9, -10);
-      camera.lookAt(-198, 14, -186);
-      renderer.render(scene, camera);
-      return;
-    }
 
     // Kamera third-person: di belakang pemain, mengikuti yaw/pitch.
     const yaw = cam.yaw;
